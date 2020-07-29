@@ -41,7 +41,10 @@ async def leaderboard(ctx, page: int = 1):
 		rank = page + 1
 		for i in query:
 			user = bot.get_user(i[0])
-			string += f'[{rank}.] {user.name}: level {i[1]}.\n'
+			if user:
+				string += f'[{rank}.] {user.name}: level {i[1]}.\n'
+			else:
+				string += f'[{rank}.] No longer in server: level {i[1]}.\n'
 			rank += 1
 		await ctx.send(f'```ini\n{string}```')
 	else:
