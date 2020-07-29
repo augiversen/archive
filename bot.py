@@ -34,7 +34,7 @@ async def level(ctx):
 @commands.guild_only()
 async def leaderboard(ctx, page: int = 1):
 	page = (page * 10) - 10
-	c.execute('''SELECT * FROM users LIMIT 10 OFFSET ?''', (page,))
+	c.execute('''SELECT * FROM users ORDER BY score DESC LIMIT 10 OFFSET ?''', (page,))
 	query = c.fetchall()
 	if query:
 		string = ''
@@ -44,7 +44,7 @@ async def leaderboard(ctx, page: int = 1):
 			if user:
 				string += f'[{rank}.] {user.name}: level {i[1]}.\n'
 			else:
-				string += f'[{rank}.] No longer in server: level {i[1]}.\n'
+				string += f'[{rank}.] User left server: level {i[1]}.\n'
 			rank += 1
 		await ctx.send(f'```ini\n{string}```')
 	else:
@@ -59,14 +59,15 @@ async def on_message(message):
 	if message.author.id == bot.user.id:
 			return
 	if str(message.channel) == 'archive' and message.attachments:
-		user = message.author.id
-		c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
-		query = c.fetchone()
-		if query:
-			level_up = query[1] + 1
-			c.execute('''UPDATE users SET score = ? WHERE user_id = ?''', (level_up, user,))
-		else:
-			c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
-		db.commit()
+		if message.attachments[0].filename.endswith(('.pdf', '.epub')):
+			user = message.author.id
+			c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
+			query = c.fetchone()
+			if query:
+				level_up = query[1] + 1
+				c.execute('''UPDATE users SET score = ? WHERE user_id = ?''', (level_up, user,))
+			else:
+				c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
+			db.commit()
 
 bot.run(vars.token)
