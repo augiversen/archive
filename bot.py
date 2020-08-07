@@ -3,7 +3,7 @@
 import discord
 from discord.ext import commands
 import sqlite3
-import vars
+import config
 
 # Sets up bot and database connection.
 bot = commands.Bot(command_prefix = 'a!')
@@ -27,10 +27,23 @@ async def level(ctx):
 		level = query[1]
 		await ctx.send(f'`Level {level}.`')
 	else:
- 		await ctx.send(f'`Level 0. Try contributing something!`')
+ 		await ctx.send('`Level 0. Try contributing something!`')
+
+# Returns your server rank, wouldn't function with ROW_NUMBER() for some reason.
+@bot.command(brief = 'Competition!', description = 'REALLY shows how big brain you are.')
+async def rank(ctx):
+	user = ctx.author.id
+	rank = 1
+	c.execute('''SELECT user_id FROM users ORDER BY score DESC''')
+	query = c.fetchall()
+	for user_id in query:
+		if user_id[0] == user:
+			return await ctx.send(f'`You\'re #{rank}!`')
+		rank += 1
+	await ctx.send('`Try contributing before checking your rank!`')
     
 # Returns a leaderboard with the users that have contributed the most to #archive.
-@bot.command(brief = 'Returns level leaderboard.', description = 'REALLY shows how big brain you are.')
+@bot.command(brief = 'Returns level leaderboard.', description = 'Compare brain sizes.')
 @commands.guild_only()
 async def leaderboard(ctx, page: int = 1):
 	page = (page * 10) - 10
@@ -52,22 +65,23 @@ async def leaderboard(ctx, page: int = 1):
 
 ### Other
 
+ebook_formats = ('.pdf', '.epub', '.txt', '.azw', '.djvu', '.mobi', '.iba', '.txt', '.rtf', '.chm', '.doc', '.html')
+
 # Checks for uploads to #archive.
 @bot.event
 async def on_message(message):
-	await bot.process_commands(message)
-	if message.author.id == bot.user.id:
-			return
-	if str(message.channel) == 'archive' and message.attachments:
-		if message.attachments[0].filename.endswith(('.pdf', '.epub')):
-			user = message.author.id
-			c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
-			query = c.fetchone()
-			if query:
-				level_up = query[1] + 1
-				c.execute('''UPDATE users SET score = ? WHERE user_id = ?''', (level_up, user,))
-			else:
-				c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
-			db.commit()
+        await bot.process_commands(message)
+        if message.author.id == bot.user.id:
+                        return
+        if str(message.channel) == 'archive' and message.attachments:
+                if message.attachments[0].filename.endswith(ebook_formats):
+                        user = message.author.id
+                        c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
+                        query = c.fetchone()
+                        if query:
+                                c.execute('''UPDATE users SET score = score + 1 WHERE user_id = ?''', (user,))
+                        else:
+                                c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
+                        db.commit()
 
-bot.run(vars.token)
+bot.run(config.token)
