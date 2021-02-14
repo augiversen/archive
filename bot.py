@@ -53,7 +53,7 @@ async def leaderboard(ctx, page: int = 1):
 		string = ''
 		rank = page + 1
 		for i in query:
-			user = bot.get_user(i[0])
+			user = await bot.fetch_user(i[0])
 			if user:
 				string += f'[{rank}.] {user.name}: level {i[1]}.\n'
 			else:
@@ -63,6 +63,20 @@ async def leaderboard(ctx, page: int = 1):
 	else:
 		await ctx.send('No entries on this page!')
 
+@bot.command(brief = 'Admin-only.', description = 'Add or remove points from user if necessary.')
+@commands.check_any(commands.has_permissions(administrator = True), commands.is_owner())
+async def modify(ctx, user: discord.Member, modifier: int = 1):
+	c.execute('''SELECT * FROM users WHERE user_id = ?''', (user.id,))
+	query = c.fetchone()
+	if query:
+		c.execute('''UPDATE users SET score = score + ? WHERE user_id = ?''', (modifier, user.id,))
+		await ctx.send(user.display_name + " modified.")
+	else:
+		await ctx.send('User not found (or hasn\'t contributed).')
+	db.commit()
+
+
+
 ### Other
 
 ebook_formats = ('.pdf', '.epub', '.txt', '.azw', '.djvu', '.mobi', '.iba', '.txt', '.rtf', '.chm', '.doc', '.html')
@@ -70,18 +84,18 @@ ebook_formats = ('.pdf', '.epub', '.txt', '.azw', '.djvu', '.mobi', '.iba', '.tx
 # Checks for uploads to #archive.
 @bot.event
 async def on_message(message):
-        await bot.process_commands(message)
-        if message.author.id == bot.user.id:
-                        return
-        if str(message.channel) == 'archive' and message.attachments:
-                if message.attachments[0].filename.endswith(ebook_formats):
-                        user = message.author.id
-                        c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
-                        query = c.fetchone()
-                        if query:
-                                c.execute('''UPDATE users SET score = score + 1 WHERE user_id = ?''', (user,))
-                        else:
-                                c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
-                        db.commit()
+    await bot.process_commands(message)
+    if message.author.id == bot.user.id:
+                    return
+    if message.channel.id == 290390228177518592 and message.attachments:
+            if message.attachments[0].filename.endswith(ebook_formats):
+                    user = message.author.id
+                    c.execute('''SELECT * FROM users WHERE user_id = ?''', (user,))
+                    query = c.fetchone()
+                    if query:
+                    	c.execute('''UPDATE users SET score = score + 1 WHERE user_id = ?''', (user,))
+                    else:
+                    	c.execute('''INSERT INTO users(user_id, score) VALUES (?, 1)''', (user,))
+                    db.commit()
 
 bot.run(config.token)
